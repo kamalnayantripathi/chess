@@ -13,7 +13,7 @@ grid-template-columns: repeat(8, auto);
 grid-template-rows: repeat(8, auto);
 border: 1px solid black;
 }
-.white {
+.light {
 background-color: white;
 }
 
@@ -24,7 +24,7 @@ min-height: 75px;
 max-height: 75px;
 }
 
-.black {
+.dark {
 background-color: rgb(92, 73, 73);
 }
  .pawn-white{
