@@ -1,105 +1,42 @@
 body{
-    margin: 0;  
+    background-color: rgb(49, 52, 49);
+    margin-top: 70px;
+    margin-left: 350px; 
+}
+
+.box{
+    border: 1px solid white;
+    height: 100px;
+    width: 100px;
+
 }
 .container{
-padding:0px;
-background-color: gold;
-display: grid;
-height: 100vh;
-width: 600px;
-/* margin-left: 20%; */
-/* margin-right: 100p; */
-grid-template-columns: repeat(8, auto);
-grid-template-rows: repeat(8, auto);
-border: 1px solid black;
-}
-.light {
-background-color: white;
+    padding:0px;
+    background-color: gold;
+    display: grid;
+    height: 440px;
+    width: 440px;
+    grid-template-columns: repeat(8, auto);
+    grid-template-rows: repeat(8, auto);
+    border: 1px solid olivedrab;
 }
 
 .item{
-min-width: 75px; 
-max-width: 75px;  
-min-height: 75px;
-max-height: 75px;
+    min-width: 55px; 
+    max-width: 55px;  
+    min-height: 55px;
+    max-height: 55px;
+}
+
+.light {
+    background-color: rgb(240, 240, 234);
 }
 
 .dark {
-background-color: rgb(92, 73, 73);
-}
- .pawn-white{
-   height: 75px;
-}
-.rook-white{
-    height: 75px;
-}
-.knight-white{
-    height: 75px;
-}
-.bishop-white{
-    height: 75px;
-}
-#queen-white{
-    height: 75px;
-}
-#king-white{
-    height: 75px;
+    background-color: rgb(16, 149, 16);
 }
 
-/* ------------------For 2D Black Pieces------------------------------- */
-
-.pawn-black{
-    height: 75px;
- }
- .rook-black{
-     height: 75px;
- }
- .knight-black{
-     height: 75px;
- }
- .bishop-black{
-     height: 75px;
- }
- #queen-black{
-     height: 75px;
- }
- #king-black{
-     height: 75px;
- }
-
-
-/* --------------For 3D Black Pieces-----------------------------------
-#king-black{
-    height: 82px;
-    width: 100px;
-    margin-left: -10px;
-    margin-top: -4px; 
- }
-  
- #queen-black{
-     height: 75px;
-     width: 75px;
-     margin-top: 2px;
- }
- .rook-black{
-     height: 80px;
-     margin-top: 1px;
- 
- }
- .knight-black{
-     height: 65px;
-     width: 65px;
-     margin-left: 5px;
-     margin-top: 10px;
- }
- .bishop-black{
-     height: 70px;
-     margin-left: 20px;
-     margin-top: 5px;
- }
- .pawn-black{
-     height: 70px;
-     width: 75px;
-     margin-top: 5px;
- } */ */
- 
+img{
+    margin-top: 1px;
+    height: 55px;
+}

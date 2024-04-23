@@ -2,7 +2,8 @@ let pieceId, pieceClicked = false;
 let innerhtml, targetElement, element, whiteCastle=false, blackCastle=false;
 let initialAscii,finalAscii,initialPlace,finalPlace;
 let knightColor,pieceInBetween,inMid=false;
-let whiteChance = true,cuttingPlace,cuttingAscii;
+let whiteChance = true,cuttingPlace,cuttingAscii,firstMovePawn=false;
+let color,check,border,enPass;
 
 let pawnsWhite = document.getElementsByClassName('pawn-white');
 for (let i = 0; i < pawnsWhite.length; i++){
@@ -10,11 +11,27 @@ pawnsWhite[i].addEventListener('click',(e)=>{
     if(whiteChance==true){
     element = e.target;
     if(pieceClicked == false || (pieceClicked==true && element.className.charCodeAt(element.className.length-1)==101  && pieceId.parentElement.id != element.parentElement.id)){
-        console.log("white pawn Clicked");
+        console.log("white pawn Clicked",color);
+        if(pieceClicked==true){
+            for(i=6;i>3;i--){
+                console.log("i : ",i,"ye lo: ",color.classList[2]);
+                // document.getElementById(color.classList[2]+i).style.backgroundColor="";
+            }
+        }
         pieceClicked = true;
+        for(i=6;i>3;i--){
+            console.log("i : ",i,"ye lo: ",e.target.parentElement.classList[2]);
+            check = document.getElementById(e.target.parentElement.classList[2]+i)
+            // check.style.backgroundColor="skyblue";
+        }
         pieceId = e.target;
+        color = e.target.parentElement;
     }else if(pieceClicked == true && pieceId.parentElement.id == element.parentElement.id){
         pieceClicked = false;
+        for(i=6;i>3;i--){
+            console.log("i : ",i,"ye lo: ",e.target.parentElement.classList[2]);
+            // document.getElementById(e.target.parentElement.classList[2]+i).style.backgroundColor="";
+        }
         console.log("white pawn unclicked");
     }}
 })
@@ -113,8 +130,13 @@ document.addEventListener('click',(e)=>{
                     console.log("piece in between pawn movement");
                 }else{
                     console.log("first Move of pawn");
+                    // for(i=6;i>3;i--){
+                        // console.log("i : ",i,"ye lo: ",color.classList[2]);
+                        // document.getElementById(color.classList[2]+i).style.backgroundColor="";
+                    // }
                     targetElement.appendChild(pieceId);
                     whiteChance=false;
+                    firstMovePawn=true;
                 }
             }else if((initialPlace >finalPlace && initialPlace-finalPlace<=1)&&(initialAscii==finalAscii)){
                     targetElement.appendChild(pieceId);
@@ -123,6 +145,15 @@ document.addEventListener('click',(e)=>{
                 console.log("piece cutted");        
                 targetElement.parentElement.replaceChild(pieceId, targetElement);
                 whiteChance=false;
+            }else if(firstMovePawn && pieceId.parentElement.classList[3]=='3'){
+                console.log("trying for en passant");
+                enPass = pieceId.parentElement.classList[2].charCodeAt(0);
+                if(enPass+1 == targetElement.classList[2].charCodeAt(0) || enPass-1 == targetElement.classList[2].charCodeAt(0)){
+                    console.log('en passant');
+                    targetElement.appendChild(pieceId);
+                    document.getElementById(targetElement.classList[2]+(parseInt(pieceId.parentElement.classList[3])+1)).innerHTML = ''
+                    whiteChance=false;
+                }
             }
                 pieceClicked = false;
             }
@@ -702,15 +733,27 @@ if(e.target.className != 'pawn-black' && e.target.id != 'queen-black' && e.targe
             console.log("first Move of pawn");
             targetElement.appendChild(pieceId); 
             whiteChance = true;
+            firstMovePawn = true;
             }
         }else if((initialPlace <finalPlace && finalPlace-initialPlace<=1)&&(pieceId.parentElement.classList[2]==targetElement.classList[2])){
                 targetElement.appendChild(pieceId);
                 console.log("in here");
                 whiteChance = true;
+                firstMovePawn = false;
         }else if((cuttingPlace-initialPlace)==1 && Math.abs(initialAscii.charCodeAt(0)-cuttingAscii)==1){
             console.log("piece cutted");        
             targetElement.parentElement.replaceChild(pieceId, targetElement);
             whiteChance = true;
+            firstMovePawn = false;
+        }else if(firstMovePawn && pieceId.parentElement.classList[3]=='4'){
+            console.log("trying for en passant");
+            enPass = pieceId.parentElement.classList[2].charCodeAt(0);
+            if(enPass+1 == targetElement.classList[2].charCodeAt(0) || enPass-1 == targetElement.classList[2].charCodeAt(0)){
+                console.log('en passant');
+                targetElement.appendChild(pieceId);
+                document.getElementById(targetElement.classList[2]+(parseInt(pieceId.parentElement.classList[3])-1)).innerHTML = ''
+                whiteChance=true;
+            }
         }
             pieceClicked = false;
         }
