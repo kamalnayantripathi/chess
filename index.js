@@ -3,9 +3,10 @@ let innerhtml, targetElement, element, whiteCastle=false, blackCastle=false;
 let initialAscii,finalAscii,initialPlace,finalPlace;
 let knightColor,pieceInBetween,inMid=false;
 let whiteChance = true,cuttingPlace,cuttingAscii,firstMovePawn=false;
-let color,check,border,enPass,enPassantPawn;
+let color,check=false,border,enPass,enPassantPawn;
 let leftCheck, rightCheck,possMoves=[],initialX,initial_X,initialY,initial_Y;
 let rookNotMoved=true,kingNotMoved=true,blackKingNotMoved=true,blackRookNotMoved=true;
+let underAttack=[],kingUnderAttack=false,attackLane=[],attackLaneHor=[];
 
 function clearAllColors(){
     for(let i=0;i<8;i++){
@@ -118,6 +119,13 @@ rookWhite[i].addEventListener('click',(e)=>{
 document.addEventListener('click',(e)=>{
     console.log("document event listener has been added for white.");
     targetElement = e.target;
+    let x,y;
+    x = document.getElementById('king-white').parentElement.classList[2].charCodeAt(0);
+    y = parseInt(document.getElementById('king-white').parentElement.classList[3]);
+    AttackedLane(x,y);
+    if(kingUnderAttack){
+        document.getElementById('king-white').style.backgroundColor='yellow'
+    }
 
     if(pieceClicked == true && pieceId.className == 'pawn-white'){
         initialPlace = parseInt(pieceId.parentElement.classList[3]);
@@ -126,13 +134,11 @@ document.addEventListener('click',(e)=>{
         rightCheck = String.fromCharCode(initialAscii.charCodeAt(0)+1);
         if(initialPlace==6){
             for(let i=1;i<3;i++){
-            possMoves[i] = initialAscii+(initialPlace-i);
-            document.getElementById(possMoves[i]).style.backgroundColor='red'
+            document.getElementById(initialAscii+(initialPlace-i)).style.backgroundColor='red'
         }}else{
-            possMoves[1]=initialAscii+(initialPlace-1);
-            console.log("poss: ",document.getElementById(possMoves[1]).childElementCount)
-            if(document.getElementById(possMoves[1]).childElementCount == 0){
-                document.getElementById(possMoves[1]).style.backgroundColor='red'
+            console.log("poss: ",document.getElementById(initialAscii+(initialPlace-1)).childElementCount)
+            if(document.getElementById(initialAscii+(initialPlace-1)).childElementCount == 0){
+                document.getElementById(initialAscii+(initialPlace-1)).style.backgroundColor='red'
         }}
         if(initialAscii!='a' && document.getElementById(leftCheck+(initialPlace-1)).children[0] && document.getElementById(leftCheck+(initialPlace-1)).children[0].className.includes('black')){
             console.log("in the left check");
@@ -222,36 +228,53 @@ document.addEventListener('click',(e)=>{
                     console.log("in replace",targetElement);
                     targetElement.parentElement.replaceChild(pieceId,targetElement);
                     clearAllColors();
+                    whiteChance = false;
+                    firstMovePawn=false;
+                    kingNotMoved=false;
                 }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
-                    console.log("in mid as well");
+                    AttackedLane(finalAscii,finalPlace);
+                    if(!kingUnderAttack){
+                        console.log(kingUnderAttack,"king's target: ",e.target);    
+                        e.target.appendChild(pieceId);
+                        clearAllColors();
+                        whiteChance = false;
+                        firstMovePawn=false;
+                        kingNotMoved=false;
+                    }
                 }
-                whiteChance = false;
-                firstMovePawn=false;
-                kingNotMoved=false;
             }else if(!whiteCastle && targetElement.id=='g7' && document.getElementById('h7').hasChildNodes('img') && !document.getElementById('f7').hasChildNodes('img') && !document.getElementById('g7').hasChildNodes('img')){ 
                 let castleRook = document.getElementById('h7').children[0];
                 let castlePlace = document.getElementById('f7');
-                e.target.appendChild(pieceId);
-                castlePlace.appendChild(castleRook);
-                document.getElementById('h7').innerHTML = "";
-                clearAllColors();
-                whiteChance=false;
-                whiteCastle=true;
-                firstMovePawn=false;
-                kingNotMoved=false;
+                AttackedLane('f'.charCodeAt(0),7);
+                AttackedLane('g'.charCodeAt(0),7);
+                if(!kingUnderAttack && !check){
+                    e.target.appendChild(pieceId);
+                    castlePlace.appendChild(castleRook);
+                    document.getElementById('h7').innerHTML = "";
+                    clearAllColors();
+                    whiteChance=false;
+                    whiteCastle=true;
+                    firstMovePawn=false;
+                    kingNotMoved=false;
+                }
+                kingUnderAttack=false;
             }else if(!whiteCastle && targetElement.id=='c7' && document.getElementById('a7').hasChildNodes('img') && !document.getElementById('b7').hasChildNodes('img') && !document.getElementById('c7').hasChildNodes('img') && !document.getElementById('d7').hasChildNodes('img') ){
                 let castleRook = document.getElementById('a7').children[0];
                 let castlePlace = document.getElementById('d7');
-                e.target.appendChild(pieceId);
-                castlePlace.appendChild(castleRook);
-                document.getElementById('a7').innerHTML = "";
-                clearAllColors();
-                whiteChance=false;
-                whiteCastle=true;
-                firstMovePawn=false;
-                kingNotMoved=false;
+                AttackedLane('b'.charCodeAt(0),7);
+                AttackedLane('c'.charCodeAt(0),7);
+                AttackedLane('d'.charCodeAt(0),7);
+                if(!kingUnderAttack && !check){
+                    e.target.appendChild(pieceId);
+                    castlePlace.appendChild(castleRook);
+                    document.getElementById('a7').innerHTML = "";
+                    clearAllColors();
+                    whiteChance=false;
+                    whiteCastle=true;
+                    firstMovePawn=false;
+                    kingNotMoved=false;
+                }
+                kingUnderAttack=false;
             }
             pieceClicked = false;    
         }        
@@ -999,57 +1022,293 @@ if(pieceClicked == true && pieceId.className == 'queen-white'){
 }
 if(pieceClicked == true && pieceId.className == "king-white"){
     console.log("rajwa aawa hai");
+    possMoves.length=0;
     initialY = parseInt(pieceId.parentElement.classList[3]);
     initialX = pieceId.parentElement.classList[2];
-    for(let i=initialX.charCodeAt(0)-1;i<initialX.charCodeAt(0)+2;i++){
-        if(i>96&&i<105&&(initialY-1)>=0){
-        console.log(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1));
-        if(document.getElementById(String.fromCharCode(i)+(initialY-1)).children[0] && document.getElementById(String.fromCharCode(i)+(initialY-1)).children[0].className.includes('white')){
-            continue;
+    // AttackedLane(initialX.charCodeAt(0),initialY);
+    if(initialY-1<8 && initialY-1>=0){
+        if(document.getElementById((initialX)+(initialY-1)).children[0] && document.getElementById((initialX)+(initialY-1)).children[0].className.includes('white')){
+            console.log('piece in front');
         }else{
-        document.getElementById(String.fromCharCode(i)+(initialY-1)).style.backgroundColor='red';
-        }
+            AttackedLane(initialX.charCodeAt(0),(initialY-1));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById((initialX)+(initialY-1)));
+                document.getElementById((initialX)+(initialY-1)).style.backgroundColor='red'
     }}
-    for(let i=initialX.charCodeAt(0)-1;i<initialX.charCodeAt(0)+2;i++){
-        if(i>96 && i<105 && (initialY+1)<8){
-        console.log(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1));
-        if(document.getElementById(String.fromCharCode(i)+(initialY+1)).children[0] && document.getElementById(String.fromCharCode(i)+(initialY+1)).children[0].className.includes('white')){
-            continue;
+        kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)-1>96) && (initialY-1<8) && (initialY-1>=0)){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).children[0].className.includes('white')){
+            console.log('piece in left front');
         }else{
-        document.getElementById(String.fromCharCode(i)+(initialY+1)).style.backgroundColor='red';
-        }
+            AttackedLane((initialX.charCodeAt(0)-1),(initialY-1));
+            console.log("checking for left diag attack",kingUnderAttack);
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).style.backgroundColor='red'
     }}
-    for(let i=initialX.charCodeAt(0)-1;i<initialX.charCodeAt(0)+2;i++){
-        if(i>96 && i<105 && (initialY+1)<8){
-        console.log(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1));
-        if(document.getElementById(String.fromCharCode(i)+(initialY+1)).children[0] && document.getElementById(String.fromCharCode(i)+(initialY+1)).children[0].className.includes('white')){
-            continue;
+        kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)+1<105) && (initialY-1<8) && (initialY-1)>=0){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).children[0].className.includes('white')){
+            console.log('piece in right front');
         }else{
-        document.getElementById(String.fromCharCode(i)+(initialY+1)).style.backgroundColor='red';
-        }
+            AttackedLane((initialX.charCodeAt(0)+1),(initialY-1));
+            console.log("checking for right diag attack",kingUnderAttack);
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).style.backgroundColor='red'
     }}
-    if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+initialY).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+initialY).children[0].className.includes('white')){
-        console.log("kuch nahi hoga aise");
-    }else{document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+initialY).style.backgroundColor = 'red';}
-    if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).children[0].className.includes('white')){
-        console.log("aise to aur kuch nahi hoga");
-    }else{ document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).style.backgroundColor = 'red';}
-    if(!whiteCastle && pieceId.parentElement.id == 'e7' && rookNotMoved && kingNotMoved){
-        if(!document.getElementById('f7').querySelector('img') && !document.getElementById('g7').querySelector('img')){
-        document.getElementById('f7').style.backgroundColor = 'red';
-        document.getElementById('g7').style.backgroundColor = 'red';
+        kingUnderAttack=false;
+}
+    if(initialY+1<8){
+        if(document.getElementById((initialX)+(initialY+1)).children[0] && document.getElementById((initialX)+(initialY+1)).children[0].className.includes('white')){
+            console.log('piece in back');
+        }else{
+            AttackedLane((initialX.charCodeAt(0)),(initialY+1));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById((initialX)+(initialY+1)));
+                document.getElementById((initialX)+(initialY+1)).style.backgroundColor='red'
     }}
-    if(!whiteCastle && pieceId.parentElement.id == 'e7' && rookNotMoved && kingNotMoved){
-        if(!document.getElementById('d7').querySelector('img') && !document.getElementById('c7').querySelector('img') && !document.getElementById('b7').querySelector('img')){
-        document.getElementById('d7').style.backgroundColor = 'red';
-        document.getElementById('c7').style.backgroundColor = 'red';
+    kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)-1>96) && (initialY+1<8)){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)).children[0].className.includes('white')){
+            console.log('piece in back left');
+        }else{
+            AttackedLane((initialX.charCodeAt(0)-1),(initialY+1));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)).style.backgroundColor='red'
     }}
-    
+    kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)+1<105) && (initialY+1<8)){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)).children[0].className.includes('white')){
+            console.log('piece in back right');
+        }else{
+            AttackedLane((initialX.charCodeAt(0)+1),(initialY+1));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)).style.backgroundColor='red'
+    }}
+    kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)+1<105)){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)).children[0].className.includes('white')){
+            console.log('piece in right');
+        }else{
+            AttackedLane((initialX.charCodeAt(0)+1),(initialY));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)).style.backgroundColor='red'
+    }}
+    kingUnderAttack=false;
+}
+    if((initialX.charCodeAt(0)-1>96)){
+        if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)).children[0].className.includes('white')){
+            console.log('piece in left');
+        }else{
+            AttackedLane((initialX.charCodeAt(0)-1),(initialY));
+            if(!kingUnderAttack){
+                possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)));
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)).style.backgroundColor='red'
+    }}
+    kingUnderAttack=false;
+}
 }
 })   
 
-
-
+function AttackedLane(x,y){
+    console.log("function check: ",x,y);
+    if(x>96 && x<105 && y>=0 && y<8){
+    for(i=y-1;i>=0;i--){
+        console.log(x,i,"upper",document.getElementById(String.fromCharCode(x)+(i)));
+        attackLane.push(document.getElementById(String.fromCharCode(x)+(i)));
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('king-white')){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-black'))){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-black'))){
+            kingUnderAttack=true;
+            break;
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    for(i=y+1;i<8;i++){
+        console.log(x,i,"lower",document.getElementById(String.fromCharCode(x)+(i)));
+        attackLane.push(document.getElementById(String.fromCharCode(x)+(i)));
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('king-white')){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-black'))){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-black'))){
+            kingUnderAttack=true;
+            break;
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    for(i=x-1;i>96;i--){
+        console.log(y,i,"left",document.getElementById(String.fromCharCode(i)+(y)));
+        attackLane.push(document.getElementById(String.fromCharCode(i)+(y)));
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('king-white')){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-black'))){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-black'))){
+            kingUnderAttack=true;
+            break;
+        }if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }  
+    for(i=x+1;i<105;i++){
+        console.log(y,i,"right",document.getElementById(String.fromCharCode(i)+(y)));
+        attackLane.push(document.getElementById(String.fromCharCode(i)+(y)));
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('king-white')){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-black'))){
+            break;
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-black'))){
+            kingUnderAttack=true;
+            break;
+        }if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    for(i=x+1,j=y-1;i<105;i++,j--){
+            if(j>=0){
+            console.log(i,j,"right upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                kingUnderAttack=true;
+                break;
+            }
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    for(i=x-1,j=y-1;i>96;i--,j--){
+            if(j>=0){
+            console.log(i,j,"left upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                kingUnderAttack=true;
+                console.log("inside left up diag: ",kingUnderAttack);
+                break;
+            }
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }  
+    for(i=x-1,j=y+1;i>96;i--,j++){
+            if(j<8){
+            console.log(i,j,"left lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                kingUnderAttack=true;
+                break;
+            }
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    for(i=x+1,j=y+1;i<105;i++,j++){
+            if(j<8){
+            console.log(i,j,"right lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
+                break;
+            } 
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                kingUnderAttack=true;
+                break;
+            }
+        }
+        if(!kingUnderAttack){
+            attackLane.length=0;
+        }
+    }
+    if((x-1)>96 && (x+1)<105 && (y-1)>=0){
+        if(document.getElementById(String.fromCharCode(x-1)+(y-1)).children[0] && document.getElementById(String.fromCharCode(x-1)+(y-1)).children[0].className.includes('pawn-black')){
+            kingUnderAttack=true;
+        }else if(document.getElementById(String.fromCharCode(x+1)+(y-1)).children[0] && document.getElementById(String.fromCharCode(x+1)+(y-1)).children[0].className.includes('pawn-black')){
+            kingUnderAttack=true;
+        }
+    }
+    for(i=x-1;i<x+2;i=i+2){
+        if(y-2>=0 && y-2<8 && i<105 && i>96){
+            // console.log("knight attack",document.getElementById(String.fromCharCode(i)+(y-2)).children[0]);
+            if(document.getElementById(String.fromCharCode(i)+(y-2)).children[0] && document.getElementById(String.fromCharCode(i)+(y-2)).children[0].className.includes('knight-black')){
+                kingUnderAttack=true;
+            }
+        }
+    }
+    for(i=x-1;i<x+2;i=i+2){
+        if(y+2<8 && i<105 && i>96 && y+2>=0){
+            // console.log("knight attack",document.getElementById(String.fromCharCode(i)+(y+2)).children[0]);
+            if(document.getElementById(String.fromCharCode(i)+(y+2)).children[0] && document.getElementById(String.fromCharCode(i)+(y+2)).children[0].className.includes('knight-black')){
+                kingUnderAttack=true;
+            }
+        }
+    }
+    for(i=y-1;i<y+2;i=i+2){
+        if(x-2>96 && x-2<105 && i<8 && i>=0){
+            // console.log("knight attack",document.getElementById(String.fromCharCode(x-2)+(i)).children[0]);
+            if(document.getElementById(String.fromCharCode(x-2)+(i)).children[0] && document.getElementById(String.fromCharCode(x-2)+(i)).children[0].className.includes('knight-black')){
+                kingUnderAttack=true;
+            }
+        }
+    }
+    for(i=y-1;i<y+2;i=i+2){
+        if(x+2<105 && x+2>=0 && i<8 && i>=0){
+            // console.log("knight attack",document.getElementById(String.fromCharCode(x+2)+(i)).children[0]);
+            if(document.getElementById(String.fromCharCode(x+2)+(i)).children[0] && document.getElementById(String.fromCharCode(x+2)+(i)).children[0].className.includes('knight-black')){
+                kingUnderAttack=true;
+            }
+        }
+    }
+}
+    if(x==initialX.charCodeAt(0) && y==initialY && kingUnderAttack){
+        check = true;
+    }
+}
 
 
 
@@ -1738,13 +1997,11 @@ if(e.target.className != 'pawn-black' && e.target.id != 'queen-black' && e.targe
         rightCheck = String.fromCharCode(initialAscii.charCodeAt(0)+1);
         if(initialPlace==1){
             for(let i=1;i<3;i++){
-            possMoves[i] = initialAscii+(initialPlace+i);
-            document.getElementById(possMoves[i]).style.backgroundColor='red'
+            document.getElementById(initialAscii+(initialPlace+i)).style.backgroundColor='red'
         }}else{
-            possMoves[1]=initialAscii+(initialPlace+1);
-            console.log("poss: ",document.getElementById(possMoves[1]).childElementCount)
-            if(document.getElementById(possMoves[1]).childElementCount == 0){
-                document.getElementById(possMoves[1]).style.backgroundColor='red'
+            console.log("poss: ",document.getElementById(initialAscii+(initialPlace+1)).childElementCount)
+            if(document.getElementById(initialAscii+(initialPlace+1)).childElementCount == 0){
+                document.getElementById(initialAscii+(initialPlace+1)).style.backgroundColor='red'
         }}
         if(initialAscii!='a' && document.getElementById(leftCheck+(initialPlace+1)).children[0] && document.getElementById(leftCheck+(initialPlace+1)).children[0].className.includes('white')){
             console.log("in the left check");
@@ -2055,7 +2312,7 @@ if(pieceClicked == true && pieceId.className == "king-black"){
     if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).children[0].className.includes('black')){
         console.log("aise to aur kuch nahi hoga");
     }else{ document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+initialY).style.backgroundColor = 'red';}
-    if(!blackCastle && pieceId.parentElement.id == 'e0' && blackRookNotMoved && blackK0ngNotMoved){
+    if(!blackCastle && pieceId.parentElement.id == 'e0' && blackRookNotMoved && blackKingNotMoved){
         if(!document.getElementById('f0').querySelector('img') && !document.getElementById('g0').querySelector('img')){
         document.getElementById('f0').style.backgroundColor = 'red';
         document.getElementById('g0').style.backgroundColor = 'red';
