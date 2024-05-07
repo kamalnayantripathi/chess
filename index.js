@@ -5,8 +5,10 @@ let knightColor,pieceInBetween,inMid=false;
 let whiteChance = true,cuttingPlace,cuttingAscii,firstMovePawn=false;
 let color,check=false,border,enPass,enPassantPawn;
 let leftCheck, rightCheck,possMoves=[],initialX,initial_X,initialY,initial_Y;
-let rookNotMoved=true,kingNotMoved=true,blackKingNotMoved=true,blackRookNotMoved=true;
-let underAttack=[],kingUnderAttack=false,attackLane=[],attackLaneHor=[];
+let rookNotMoved=true,kingNotMoved=true,blackKingNotMoved=true,blackRookNotMoved=true,attackingPiece=false;
+let underAttack=[],kingUnderAttack=false,kingCanBeSaved=false,safetyPiece=[],attackLane=[],attackLaneHor=[];
+let kingX,kingY,onlyChecking=false,pin=false,pinnedPiece=[],pinnedPieces=[],pinningLane=[],pinnedPieceCount=0;
+let pinningLanes=[],kingCanMove=false;
 
 function clearAllColors(){
     for(let i=0;i<8;i++){
@@ -50,8 +52,9 @@ kingWhite.addEventListener('click',(e)=>{
         clearAllColors();
 }}})
 
-let queenWhite = document.getElementById('queen-white');
-queenWhite.addEventListener('click',(e)=>{
+let queenWhite = document.getElementsByClassName('queen-white');
+for(let i=0;i<queenWhite.length;i++){
+queenWhite[i].addEventListener('click',(e)=>{
     clearAllColors();
     if(whiteChance==true){
     element = e.target;
@@ -64,7 +67,7 @@ queenWhite.addEventListener('click',(e)=>{
         clearAllColors();
         console.log("white queen unclicked");
     }
-}})
+}})}
 
 let knightWhite = document.getElementsByClassName('knight-white');
 for(let i = 0; i < knightWhite.length; i++){
@@ -119,13 +122,7 @@ rookWhite[i].addEventListener('click',(e)=>{
 document.addEventListener('click',(e)=>{
     console.log("document event listener has been added for white.");
     targetElement = e.target;
-    let x,y;
-    x = document.getElementById('king-white').parentElement.classList[2].charCodeAt(0);
-    y = parseInt(document.getElementById('king-white').parentElement.classList[3]);
-    AttackedLane(x,y);
-    if(kingUnderAttack){
-        document.getElementById('king-white').style.backgroundColor='yellow'
-    }
+    
 
     if(pieceClicked == true && pieceId.className == 'pawn-white'){
         initialPlace = parseInt(pieceId.parentElement.classList[3]);
@@ -134,7 +131,10 @@ document.addEventListener('click',(e)=>{
         rightCheck = String.fromCharCode(initialAscii.charCodeAt(0)+1);
         if(initialPlace==6){
             for(let i=1;i<3;i++){
-            document.getElementById(initialAscii+(initialPlace-i)).style.backgroundColor='red'
+                if(document.getElementById(initialAscii+(initialPlace-i)).children[0]){
+                    break;
+                }
+                document.getElementById(initialAscii+(initialPlace-i)).style.backgroundColor='red'
         }}else{
             console.log("poss: ",document.getElementById(initialAscii+(initialPlace-1)).childElementCount)
             if(document.getElementById(initialAscii+(initialPlace-1)).childElementCount == 0){
@@ -164,49 +164,105 @@ document.addEventListener('click',(e)=>{
         if(pieceClicked == true && pieceId.className == 'pawn-white'){
             console.log("white pawn :",e.target);  
             initialPlace = parseInt(pieceId.parentElement.classList[3]);
-            finalPlace = parseInt(targetElement.classList[3]);
+            
             initialAscii = pieceId.parentElement.classList[2];
-            finalAscii = targetElement.classList[2];
             if(targetElement.parentElement.className != "container"){
-            cuttingPlace = parseInt(targetElement.parentElement.classList[3]);
-            cuttingAscii = targetElement.parentElement.classList[2].charCodeAt(0);
+                finalPlace = parseInt(targetElement.parentElement.classList[3]);
+                finalAscii = targetElement.parentElement.classList[2].charCodeAt(0);
+            }else{
+                finalPlace = parseInt(targetElement.classList[3]);
+                finalAscii = targetElement.classList[2];
             }
+            
             if(initialPlace==6 && finalPlace==4 && (initialAscii==finalAscii)){    
                 if(document.getElementsByClassName(initialAscii)[5].hasChildNodes('img')){
                     console.log("piece in between pawn movement");
                 }else{
-                    console.log("first Move of pawn");
-                    clearAllColors();
-                    targetElement.appendChild(pieceId);
-                    whiteChance=false;
-                    firstMovePawn=true;
-                    enPassantPawn=pieceId;
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            console.log("first Move of pawn");
+                            clearAllColors();
+                            targetElement.appendChild(pieceId);
+                            check=false;
+                            whiteChance=false;
+                            firstMovePawn=true;
+                            enPassantPawn=pieceId;
+                        }
+                    }else{
+                        console.log("first Move of pawn");
+                        clearAllColors();
+                        targetElement.appendChild(pieceId);
+                        check=false;
+                        whiteChance=false;
+                        firstMovePawn=true;
+                        enPassantPawn=pieceId;
+                    }
                 }
             }else if((initialPlace >finalPlace && initialPlace-finalPlace<=1)&&(initialAscii==finalAscii)){
-                    targetElement.appendChild(pieceId);
-                    if(initialPlace==6){
-                        clearAllColors();
-                    }else{
-                        clearAllColors();
+                if(checkForPin(pieceId)){
+                    if(pinnedPieceMovement(targetElement)){
+                        targetElement.appendChild(pieceId);
+                        if(initialPlace==6){
+                            clearAllColors();
+                        }else{
+                            clearAllColors();
+                        }   
+                        check=false;
+                        whiteChance=false;
+                        firstMovePawn=false;
                     }
+                }else{
+                    targetElement.appendChild(pieceId);
+                        if(initialPlace==6){
+                            clearAllColors();
+                        }else{
+                            clearAllColors();
+                        }   
+                        check=false;
+                        whiteChance=false;
+                        firstMovePawn=false;
+                }
+            }else if((initialPlace-finalPlace)==1 && Math.abs(initialAscii.charCodeAt(0)-finalAscii)==1){
+                if(checkForPin(pieceId)){
+                    if(pinnedPieceMovement(targetElement)){
+                        console.log("piece cutted");        
+                        targetElement.parentElement.replaceChild(pieceId, targetElement);
+                        clearAllColors();
+                        check=false;
+                        whiteChance=false;
+                        firstMovePawn=false;
+                    }
+                }else{
+                    console.log("piece cutted");        
+                    targetElement.parentElement.replaceChild(pieceId, targetElement);
+                    clearAllColors();
+                    check=false;
                     whiteChance=false;
                     firstMovePawn=false;
-            }else if((initialPlace-cuttingPlace)==1 && Math.abs(initialAscii.charCodeAt(0)-cuttingAscii)==1){
-                console.log("piece cutted");        
-                targetElement.parentElement.replaceChild(pieceId, targetElement);
-                clearAllColors();
-                whiteChance=false;
-                firstMovePawn=false;
+                }
             }else if(firstMovePawn && pieceId.parentElement.classList[3]=='3' && enPassantPawn.parentElement.id == document.getElementById(targetElement.classList[2]+pieceId.parentElement.classList[3]).id){
                 console.log("trying for en passant");
                 enPass = pieceId.parentElement.classList[2].charCodeAt(0);
                 if(enPass+1 == targetElement.classList[2].charCodeAt(0) || enPass-1 == targetElement.classList[2].charCodeAt(0)){
-                    console.log('en passant');
-                    targetElement.appendChild(pieceId);
-                    document.getElementById(targetElement.classList[2]+(parseInt(pieceId.parentElement.classList[3])+1)).innerHTML = ''
-                    clearAllColors();
-                    whiteChance=false;
-                    firstMovePawn=false;
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            console.log('en passant');
+                            targetElement.appendChild(pieceId);
+                            document.getElementById(targetElement.classList[2]+(parseInt(pieceId.parentElement.classList[3])+1)).innerHTML = ''
+                            clearAllColors();
+                            check=false;
+                            whiteChance=false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        console.log('en passant');
+                            targetElement.appendChild(pieceId);
+                            document.getElementById(targetElement.classList[2]+(parseInt(pieceId.parentElement.classList[3])+1)).innerHTML = ''
+                            clearAllColors();
+                            check=false;
+                            whiteChance=false;
+                            firstMovePawn=false;
+                    }
                 }
             }
                 pieceClicked = false;
@@ -225,21 +281,38 @@ document.addEventListener('click',(e)=>{
             }
             if((Math.abs(initialPlace-finalPlace)==1 && Math.abs(initialAscii-finalAscii)<=1) || (Math.abs(initialAscii-finalAscii)==1)&&(Math.abs(initialPlace-finalPlace)<=1)){
                 if(targetElement.className.includes('black')){
-                    console.log("in replace",targetElement);
-                    targetElement.parentElement.replaceChild(pieceId,targetElement);
-                    clearAllColors();
-                    whiteChance = false;
-                    firstMovePawn=false;
-                    kingNotMoved=false;
-                }else{
-                    AttackedLane(finalAscii,finalPlace);
-                    if(!kingUnderAttack){
-                        console.log(kingUnderAttack,"king's target: ",e.target);    
-                        e.target.appendChild(pieceId);
+                    for(i=0;i<possMoves.length;i++){
+                        if(targetElement==possMoves[i]){
+                            kingCanMove=true;
+                        }else if(possMoves[i].children[0] && targetElement==possMoves[i].children[0]){
+                            kingCanMove=true;
+                        }
+                    }if(kingCanMove){
+                        console.log("in replace",targetElement);
+                        targetElement.parentElement.replaceChild(pieceId,targetElement);
                         clearAllColors();
+                        check=false;
                         whiteChance = false;
                         firstMovePawn=false;
                         kingNotMoved=false;
+                        kingCanMove=false;
+                    }
+                }else{
+                    for(i=0;i<possMoves.length;i++){
+                        if(targetElement==possMoves[i]){
+                            kingCanMove=true;
+                        }else if(possMoves[i].children[0] && targetElement==possMoves[i].children[0]){
+                            kingCanMove=true;
+                        }
+                    }if(kingCanMove){
+                        console.log(kingUnderAttack,"king's target: ",e.target);    
+                        e.target.appendChild(pieceId);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;
+                        kingNotMoved=false;
+                        kingCanMove=false;
                     }
                 }
             }else if(!whiteCastle && targetElement.id=='g7' && document.getElementById('h7').hasChildNodes('img') && !document.getElementById('f7').hasChildNodes('img') && !document.getElementById('g7').hasChildNodes('img')){ 
@@ -252,6 +325,7 @@ document.addEventListener('click',(e)=>{
                     castlePlace.appendChild(castleRook);
                     document.getElementById('h7').innerHTML = "";
                     clearAllColors();
+                    check=false;
                     whiteChance=false;
                     whiteCastle=true;
                     firstMovePawn=false;
@@ -269,6 +343,7 @@ document.addEventListener('click',(e)=>{
                     castlePlace.appendChild(castleRook);
                     document.getElementById('a7').innerHTML = "";
                     clearAllColors();
+                    check=false;
                     whiteChance=false;
                     whiteCastle=true;
                     firstMovePawn=false;
@@ -304,17 +379,44 @@ document.addEventListener('click',(e)=>{
                     }
                     if(!inMid){
                         if(targetElement.className.includes('black')){
-                            console.log("in replace",targetElement);
-                            targetElement.parentElement.replaceChild(pieceId,targetElement);
-                            clearAllColors();
+                            if(checkForPin(pieceId)){
+                                if(pinnedPieceMovement(targetElement)){
+                                    targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                    clearAllColors();
+                                    check=false;
+                                    whiteChance = false;
+                                    firstMovePawn=false;
+                                    rookNotMoved=false;
+                                }
+                            }else{
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
                         }else{
-                            e.target.appendChild(pieceId);
-                            clearAllColors();
-                            console.log("in mid as well");
+                            if(checkForPin(pieceId)){
+                                if(pinnedPieceMovement(targetElement)){
+                                    e.target.appendChild(pieceId);
+                                    clearAllColors();
+                                    console.log("in mid as well");
+                                    check=false;
+                                    whiteChance = false;
+                                    firstMovePawn=false;
+                                    rookNotMoved=false;
+                                }
+                            }else{
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                console.log("in mid as well");
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
                         }
-                        whiteChance = false;
-                        firstMovePawn=false;
-                        rookNotMoved=false;
                     }
                     inMid=false;
                 }
@@ -330,17 +432,42 @@ document.addEventListener('click',(e)=>{
                 }
                 if(!inMid){
                     if(targetElement.className.includes('black')){
-                        console.log("in replace",targetElement);
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false;
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
-                        console.log("in mid as well");
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false;
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
-                    rookNotMoved=false;
                 }
                 inMid=false;
             }
@@ -356,17 +483,44 @@ document.addEventListener('click',(e)=>{
                 }
                 if(!inMid){
                     if(targetElement.className.includes('black')){
-                        console.log("in replace",targetElement);
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false;                            
+                        }
                     }else{
-                        console.log("in mid as well");
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                console.log("in mid as well");
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false;
+                            }
+                        }else{
+                            console.log("in mid as well");
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false;                          
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
-                    rookNotMoved=false;
                 }
                 inMid=false;
             }
@@ -382,17 +536,42 @@ document.addEventListener('click',(e)=>{
                 }
                 if(!inMid){
                     if(targetElement.className.includes('black')){
-                        console.log("in replace",targetElement);
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
-                        console.log("in mid as well");
-                    }
-                    whiteChance = false;
-                    firstMovePawn=false;
-                    rookNotMoved=false;
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                                rookNotMoved=false
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                            rookNotMoved=false    
+                        }
+                    };
                 }
                 inMid=false;
             }
@@ -426,14 +605,38 @@ document.addEventListener('click',(e)=>{
                 if(!inMid){
                     console.log("white in tedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -449,14 +652,38 @@ document.addEventListener('click',(e)=>{
                 if(!inMid){
                     console.log("in ulta tedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -473,14 +700,38 @@ document.addEventListener('click',(e)=>{
                 if(!inMid){
                     console.log("white in seedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -497,14 +748,38 @@ document.addEventListener('click',(e)=>{
             if(!inMid){
                 console.log("white in seedha ulta mid as well");
                 if(targetElement.className.includes('black')){
-                    targetElement.parentElement.replaceChild(pieceId,targetElement);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        targetElement.parentElement.replaceChild(pieceId,targetElement);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;
+                    }
                 }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        e.target.appendChild(pieceId);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;
+                    }
                 }
-                whiteChance = false;
-                firstMovePawn=false;
             }
             inMid=false;
         }
@@ -518,35 +793,54 @@ document.addEventListener('click',(e)=>{
         if(targetElement.parentElement.className != "container"){
             finalPlace = parseInt(targetElement.parentElement.classList[3]);
             finalAscii = targetElement.parentElement.classList[2].charCodeAt(0);
-            console.log("ascii: ",finalAscii,"place: ",finalPlace);
         }else{
             finalPlace = parseInt(targetElement.classList[3]);
             finalAscii = targetElement.classList[2].charCodeAt(0);
         }
 
         if(initialPlace == finalPlace || initialAscii == finalAscii){
-            console.log("before in for loop");
             if(finalPlace>initialPlace){
                 for(let i = initialPlace+1; i<finalPlace; i++){
                     pieceInBetween = document.getElementsByClassName(String.fromCharCode(initialAscii))[i];
-                    console.log("i is: ",i,"pieceInBetween: ",pieceInBetween);
                     if(pieceInBetween && pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between");
                         inMid=true;
                         break;  
                     }
                 }
                 if(!inMid){
-                    console.log("in mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;      
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;       
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -554,70 +848,144 @@ document.addEventListener('click',(e)=>{
                 for(let i = finalPlace+1; i<initialPlace; i++){
                     pieceInBetween = document.getElementsByClassName(String.fromCharCode(initialAscii))[i];
                     if(pieceInBetween && pieceInBetween.hasChildNodes('img')){
-                        console.log("i is: ",i,"pieceInBetween: ",pieceInBetween);
                         inMid=true;
                         break;  
                     }
                 }
                 if(!inMid){
-                    console.log("in mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;       
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
             if(initialAscii<finalAscii){
                 for(let i = initialAscii-96; i<finalAscii-97; i++){
                     pieceInBetween = document.getElementsByClassName(initialPlace)[i];
-                    console.log("i is: ",i,"pieceInBetween",pieceInBetween);
                     if(pieceInBetween && pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between horizontal");
                         inMid=true;
                         break;
                     }
                 }
                 if(!inMid){
-                    console.log("in mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;       
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            if(checkForPin(pieceId)){
+                                if(pinnedPieceMovement(targetElement)){
+                                    e.target.appendChild(pieceId);
+                                    clearAllColors();
+                                    check=false;
+                                    whiteChance = false;
+                                    firstMovePawn=false;
+                                }
+                            }else{
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;        
+                            }      
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
             else if(initialAscii>finalAscii){
                 for(let i = initialAscii-98; i>finalAscii-97; i--){
                     pieceInBetween = document.getElementsByClassName(initialPlace)[i];
-                    console.log("i is: ",i,"pieceInBetween",pieceInBetween);
                     if(pieceInBetween && pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between horizontal");
                         inMid=true;
                         break;
                     }
                 }
                 if(!inMid){
-                    console.log("in mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;       
+                        }
                     }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;      
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -628,21 +996,44 @@ document.addEventListener('click',(e)=>{
                 for(let j=initialPlace+1, i=initialAscii+1; i<finalAscii; i++,j++){
                     pieceInBetween = document.getElementsByClassName(String.fromCharCode(i)+` ${j}`)[0];
                     if(pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between tedha",pieceInBetween);
                         inMid=true;
                         break;
                     }
                 }
                 if(!inMid){
-                    console.log("in tedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement)
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;     
+                        }
                     }else{
-                        e.target.appendChild(pieceId);  
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);  
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);  
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;       
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -650,22 +1041,44 @@ document.addEventListener('click',(e)=>{
                 for(let j=initialPlace-1,i=initialAscii-1;i>finalAscii;i--,j--){
                     pieceInBetween = document.getElementsByClassName(String.fromCharCode(i)+` ${j}`)[0];
                     if(pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between ulta tedha",pieceInBetween);
                         inMid=true;
                         break;
                     }
                 }
                 if(!inMid){
-                    console.log("in ulta tedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;         
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;        
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -674,22 +1087,44 @@ document.addEventListener('click',(e)=>{
                 for(let j=initialPlace+1,i=initialAscii-1;i>finalAscii;i--,j++){
                     pieceInBetween = document.getElementsByClassName(String.fromCharCode(i)+` ${j}`)[0];
                     if(pieceInBetween.hasChildNodes('img')){
-                        console.log("piece in between seedha",pieceInBetween);
                         inMid=true;
                         break;
                     }
                 }
                 if(!inMid){
-                    console.log("in seedha mid as well");
                     if(targetElement.className.includes('black')){
-                        targetElement.parentElement.replaceChild(pieceId,targetElement);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;        
+                        }
                     }else{
-                        e.target.appendChild(pieceId);
-                        clearAllColors();
+                        if(checkForPin(pieceId)){
+                            if(pinnedPieceMovement(targetElement)){
+                                e.target.appendChild(pieceId);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                            }
+                        }else{
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;     
+                        }
                     }
-                    whiteChance = false;
-                    firstMovePawn=false;
                 }
                 inMid=false;
             }
@@ -697,23 +1132,45 @@ document.addEventListener('click',(e)=>{
         if(initialAscii<finalAscii && initialPlace>finalPlace){
             for(let j=initialPlace- 1,i=initialAscii+1;i<finalAscii;i++,j--){
                 pieceInBetween = document.getElementsByClassName(String.fromCharCode(i)+` ${j}`)[0];
-                console.log("i: ",i,"j: ",j,"piece in between seedha ulta",pieceInBetween);
                 if(pieceInBetween.hasChildNodes('img')){
                     inMid=true;
                     break;
                 }
             }
             if(!inMid){
-                console.log("in seedha ulta mid as well");
                 if(targetElement.className.includes('black')){
-                    targetElement.parentElement.replaceChild(pieceId,targetElement);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        targetElement.parentElement.replaceChild(pieceId,targetElement);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;      
+                    }
                 }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        e.target.appendChild(pieceId);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;       
+                    }
                 }
-                whiteChance = false;
-                firstMovePawn=false;
             }
             inMid=false;
         }
@@ -737,34 +1194,87 @@ document.addEventListener('click',(e)=>{
         if((knightColor=='light' && e.target.classList[1]=='dark')||(knightColor=='dark' && e.target.classList[1]=='light')){
             if((Math.abs(initialPlace-finalPlace)==2 && Math.abs(initialAscii-finalAscii)<=2) || (Math.abs(initialAscii-finalAscii)==2)&&(Math.abs(initialPlace-finalPlace)<=2)){
                 if(targetElement.className.includes('black')){
-                    targetElement.parentElement.replaceChild(pieceId,targetElement);
-                    clearAllColors();                    
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            targetElement.parentElement.replaceChild(pieceId,targetElement);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;   
+                        }
+                    }else{
+                        targetElement.parentElement.replaceChild(pieceId,targetElement);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false; 
+                    }
                 }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                    }
                 }
-                whiteChance = false;
-                firstMovePawn=false;
         }
     }}
     else if(targetElement.parentElement.className != "container"){
         if((knightColor=='light' && e.target.parentElement.className.includes('dark'))||(knightColor=='dark' && e.target.parentElement.className.includes('light'))){
             if((Math.abs(initialPlace-finalPlace)==2 && Math.abs(initialAscii-finalAscii)<=2) || (Math.abs(initialAscii-finalAscii)==2)&&(Math.abs(initialPlace-finalPlace)<=2)){
                 if(targetElement.className.includes('black')){
-                    console.log("ghoda chala");
-                    targetElement.parentElement.replaceChild(pieceId,targetElement);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                                console.log("ghoda chala");
+                                targetElement.parentElement.replaceChild(pieceId,targetElement);
+                                clearAllColors();
+                                check=false;
+                                whiteChance = false;
+                                firstMovePawn=false;
+                        }
+                    }else{
+                        console.log("ghoda chala");
+                        targetElement.parentElement.replaceChild(pieceId,targetElement);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;
+                    }
                 }else{
-                    e.target.appendChild(pieceId);
-                    clearAllColors();
+                    if(checkForPin(pieceId)){
+                        if(pinnedPieceMovement(targetElement)){
+                            e.target.appendChild(pieceId);
+                            clearAllColors();
+                            check=false;
+                            whiteChance = false;
+                            firstMovePawn=false;
+                        }
+                    }else{
+                        e.target.appendChild(pieceId);
+                        clearAllColors();
+                        check=false;
+                        whiteChance = false;
+                        firstMovePawn=false;
+                    }
                 }
-                whiteChance = false;
-                firstMovePawn=false;
             }
         }}
         pieceClicked = false;
     }
-
+    if(!whiteChance){
+        console.log('underAttack ki length 0 kar rahe');
+        underAttack.length=0;
+        kingUnderAttack=false;
+    }
 }
 if(pieceClicked==true && pieceId.className=="knight-white"){
     console.log("ghoda chala rahe hain");
@@ -1023,41 +1533,64 @@ if(pieceClicked == true && pieceId.className == 'queen-white'){
 if(pieceClicked == true && pieceId.className == "king-white"){
     console.log("rajwa aawa hai");
     possMoves.length=0;
+    // attackLane.length=0;
     initialY = parseInt(pieceId.parentElement.classList[3]);
     initialX = pieceId.parentElement.classList[2];
-    // AttackedLane(initialX.charCodeAt(0),initialY);
+    possibleKingMoves(initialX,initialY);
+    if(!whiteCastle && pieceId.parentElement.id == 'e7' && rookNotMoved && kingNotMoved){
+        if(!document.getElementById('f7').querySelector('img') && !document.getElementById('g7').querySelector('img')){
+        document.getElementById('f7').style.backgroundColor = 'red';
+        document.getElementById('g7').style.backgroundColor = 'red';
+    }}
+    if(!whiteCastle && pieceId.parentElement.id == 'e0' && rookNotMoved && kingNotMoved){
+        if(!document.getElementById('d7').querySelector('img') && !document.getElementById('c7').querySelector('img') && !document.getElementById('b7').querySelector('img')){
+        document.getElementById('d7').style.backgroundColor = 'red';
+        document.getElementById('c7').style.backgroundColor = 'red';
+    }}
+}
+})   
+function possibleKingMoves(initialX,initialY){
+    possMoves.length = 0;
+    console.log("ini X,Y: ",initialX,initialY);
     if(initialY-1<8 && initialY-1>=0){
         if(document.getElementById((initialX)+(initialY-1)).children[0] && document.getElementById((initialX)+(initialY-1)).children[0].className.includes('white')){
             console.log('piece in front');
         }else{
             AttackedLane(initialX.charCodeAt(0),(initialY-1));
             if(!kingUnderAttack){
+                console.log("pushing poss front");
                 possMoves.push(document.getElementById((initialX)+(initialY-1)));
-                document.getElementById((initialX)+(initialY-1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById((initialX)+(initialY-1)).style.backgroundColor='red';
+                }
     }}
         kingUnderAttack=false;
 }
     if((initialX.charCodeAt(0)-1>96) && (initialY-1<8) && (initialY-1>=0)){
         if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).children[0].className.includes('white')){
-            console.log('piece in left front');
+            console.log('piece in left diag');
         }else{
             AttackedLane((initialX.charCodeAt(0)-1),(initialY-1));
-            console.log("checking for left diag attack",kingUnderAttack);
             if(!kingUnderAttack){
+                console.log("pushing poss for left diag");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY-1)).style.backgroundColor='red';
+                }
     }}
         kingUnderAttack=false;
 }
     if((initialX.charCodeAt(0)+1<105) && (initialY-1<8) && (initialY-1)>=0){
         if(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).children[0] && document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).children[0].className.includes('white')){
-            console.log('piece in right front');
+            console.log('piece in right diag');
         }else{
             AttackedLane((initialX.charCodeAt(0)+1),(initialY-1));
-            console.log("checking for right diag attack",kingUnderAttack);
             if(!kingUnderAttack){
+                console.log("pushing poss for right diag");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY-1)).style.backgroundColor='red';
+                }
     }}
         kingUnderAttack=false;
 }
@@ -1067,8 +1600,11 @@ if(pieceClicked == true && pieceId.className == "king-white"){
         }else{
             AttackedLane((initialX.charCodeAt(0)),(initialY+1));
             if(!kingUnderAttack){
+                console.log("pushing poss for back");
                 possMoves.push(document.getElementById((initialX)+(initialY+1)));
-                document.getElementById((initialX)+(initialY+1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById((initialX)+(initialY+1)).style.backgroundColor='red';
+                }
     }}
     kingUnderAttack=false;
 }
@@ -1078,8 +1614,11 @@ if(pieceClicked == true && pieceId.className == "king-white"){
         }else{
             AttackedLane((initialX.charCodeAt(0)-1),(initialY+1));
             if(!kingUnderAttack){
+                console.log("pushing poss for back left");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY+1)).style.backgroundColor='red';
+                }
     }}
     kingUnderAttack=false;
 }
@@ -1089,8 +1628,11 @@ if(pieceClicked == true && pieceId.className == "king-white"){
         }else{
             AttackedLane((initialX.charCodeAt(0)+1),(initialY+1));
             if(!kingUnderAttack){
+                console.log("pushing poss for back right");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY+1)).style.backgroundColor='red';
+                }
     }}
     kingUnderAttack=false;
 }
@@ -1100,8 +1642,11 @@ if(pieceClicked == true && pieceId.className == "king-white"){
         }else{
             AttackedLane((initialX.charCodeAt(0)+1),(initialY));
             if(!kingUnderAttack){
+                console.log("pushing poss for right");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)+1)+(initialY)).style.backgroundColor='red';
+                }
     }}
     kingUnderAttack=false;
 }
@@ -1111,160 +1656,454 @@ if(pieceClicked == true && pieceId.className == "king-white"){
         }else{
             AttackedLane((initialX.charCodeAt(0)-1),(initialY));
             if(!kingUnderAttack){
+                console.log("pushing poss for left");
                 possMoves.push(document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)));
-                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)).style.backgroundColor='red'
+                if(!onlyChecking){
+                document.getElementById(String.fromCharCode(initialX.charCodeAt(0)-1)+(initialY)).style.backgroundColor='red';
+                }
     }}
     kingUnderAttack=false;
 }
 }
-})   
 
 function AttackedLane(x,y){
-    console.log("function check: ",x,y);
+    console.log(attackLane.length,"function check: ",x,y,"onlycheck: ",onlyChecking);
+    pinnedPieces.length=0;
+    pinningLane.length=0;
+    pinningLanes.length=0;
     if(x>96 && x<105 && y>=0 && y<8){
+        for(i=x-1;i<x+2;i++){
+            if(i>96 && i<105 && y-1>=0 && y<8){
+                if(document.getElementById(String.fromCharCode(i)+(y-1)).children[0] && document.getElementById(String.fromCharCode(i)+(y-1)).children[0].className == "king-black"){
+                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y-1)).children[0]);
+                    kingUnderAttack=true;
+                }
+            }
+        }
+        for(i=x-1;i<x+2;i++){
+            if(i>96 && i<105 && y>=0 && y+1<8){
+                if(document.getElementById(String.fromCharCode(i)+(y+1)).children[0] && document.getElementById(String.fromCharCode(i)+(y+1)).children[0].className == "king-black"){
+                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y+1)).children[0]);
+                    kingUnderAttack=true;
+                }
+            }
+        }
+        for(i=x-1;i<x+2;i++){
+            if(i>96 && i<105 && y>=0 && y<8){
+                if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className == "king-black"){
+                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                    kingUnderAttack=true;
+                }
+            }
+        }
     for(i=y-1;i>=0;i--){
         console.log(x,i,"upper",document.getElementById(String.fromCharCode(x)+(i)));
         attackLane.push(document.getElementById(String.fromCharCode(x)+(i)));
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('king-white')){
-            break;
+            if(onlyChecking){
+                pinnedPieceCount++;
+                console.log("showing pinned piece count: ",pinnedPieceCount);
+                pinnedPiece.push(document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                if(pinnedPieceCount>1){
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+            }}else{break;}
         }
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-black'))){
-            break;
-        }
+            if(onlyChecking){
+                pinnedPiece.length=0;
+                pinnedPieceCount=0;
+                console.log("zeroing pinned piece count");
+                break;
+            }else{break;}
+    }
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-black'))){
+            if(onlyChecking && pinnedPieceCount==1){
+                pin=true;
+                pinnedPieces.push(pinnedPiece[0]);
+                console.log("pinned piece",document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                break;
+            }
             kingUnderAttack=true;
+            attackingPiece=true;
             break;
-        }
-        if(!kingUnderAttack){
-            attackLane.length=0;
         }
     }
+    if(pin && onlyChecking){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    console.log("everything",onlyChecking,attackingPiece,pinnedPieceCount,pinnedPiece[0]);
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
     for(i=y+1;i<8;i++){
-        console.log(x,i,"lower",document.getElementById(String.fromCharCode(x)+(i)));
         attackLane.push(document.getElementById(String.fromCharCode(x)+(i)));
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('king-white')){
-            break;
+            if(onlyChecking){
+                pinnedPieceCount++;
+                console.log("showing pinned piece count: ",pinnedPieceCount);
+                pinnedPiece.push(document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                if(pinnedPieceCount>1){
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+                }}else{break;}
         }
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-black'))){
-            break;
+            if(onlyChecking){
+                pinnedPiece.length=0;
+                pinnedPieceCount=0;
+                console.log("zeroing pinned piece count");
+                break;
+            }else{break;}
         }
         if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-black'))){
+            if(onlyChecking && pinnedPieceCount==1){
+                pin=true;
+                pinnedPieces.push(pinnedPiece[0]);
+                console.log("pinned piece",document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                break;
+            }
             kingUnderAttack=true;
+            attackingPiece=true;
             break;
         }
-        if(!kingUnderAttack){
-            attackLane.length=0;
-        }
     }
+    if(pin && onlyChecking){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
     for(i=x-1;i>96;i--){
-        console.log(y,i,"left",document.getElementById(String.fromCharCode(i)+(y)));
         attackLane.push(document.getElementById(String.fromCharCode(i)+(y)));
         if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('king-white')){
-            break;
+            if(onlyChecking){
+                pinnedPieceCount++;
+                console.log("showing pinned piece count: ",pinnedPieceCount);
+                pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                if(pinnedPieceCount>1){
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+            }}else{break;}
         }
         if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-black'))){
-            break;
+            if(onlyChecking){
+                pinnedPiece.length=0;
+                pinnedPieceCount=0;
+                console.log("zeroing pinned piece count");
+                break;
+            }else{break;}
         }
         if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-black'))){
+            if(onlyChecking && pinnedPieceCount==1){
+                pin=true;
+                pinnedPieces.push(pinnedPiece[0]);
+                console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                break;
+            }
             kingUnderAttack=true;
+            attackingPiece=true;
             break;
-        }if(!kingUnderAttack){
-            attackLane.length=0;
-        }
-    }  
-    for(i=x+1;i<105;i++){
-        console.log(y,i,"right",document.getElementById(String.fromCharCode(i)+(y)));
-        attackLane.push(document.getElementById(String.fromCharCode(i)+(y)));
-        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('king-white')){
-            break;
-        }
-        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-black'))){
-            break;
-        }
-        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-black'))){
-            kingUnderAttack=true;
-            break;
-        }if(!kingUnderAttack){
-            attackLane.length=0;
         }
     }
+    if(pin && onlyChecking){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    } 
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
+    for(i=x+1;i<105;i++){
+        attackLane.push(document.getElementById(String.fromCharCode(i)+(y)));
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('king-white')){
+            if(onlyChecking){
+                pinnedPieceCount++;
+                console.log("showing pinned piece count: ",pinnedPieceCount);
+                pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                if(pinnedPieceCount>1){
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+            }}else{break;}
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-black'))){
+            if(onlyChecking){
+                pinnedPiece.length=0;
+                pinnedPieceCount=0;
+                console.log("zeroing pinned piece count");
+                break;
+            }else{break;}
+        }
+        if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-black'))){
+            if(onlyChecking && pinnedPieceCount==1){
+                pin=true;
+                pinnedPieces.push(pinnedPiece[0]);
+                console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                break;
+            }
+            kingUnderAttack=true;
+            attackingPiece=true;
+            break;
+        }
+    }
+    if(pin && onlyChecking){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    console.log("everything",onlyChecking,attackingPiece,pinnedPieceCount,pinnedPiece[0]);
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
     for(i=x+1,j=y-1;i<105;i++,j--){
-            if(j>=0){
+        if(j>=0){
             console.log(i,j,"right upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
             attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
-                break;
+                if(onlyChecking){
+                    pinnedPieceCount++;
+                    console.log("showing pinned piece count: ",pinnedPieceCount);
+                    pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    if(pinnedPieceCount>1){
+                        pinnedPiece.length=0;
+                        pinnedPieceCount=0;
+                        break;
+                    }}else{
+                    console.log("breaking in right upper");
+                    break;
+                }
             }
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
-                break;
+                if(onlyChecking){
+                    console.log("zeroing pinned piece count");
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+                }else{
+                    console.log("breaking in right upper");
+                    break;
+                }
             }
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                if(onlyChecking && pinnedPieceCount==1){
+                    pin=true;
+                    pinnedPieces.push(pinnedPiece[0]);
+                    console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
                 kingUnderAttack=true;
+                attackingPiece=true;
                 break;
             }
         }
-        if(!kingUnderAttack){
-            attackLane.length=0;
-        }
     }
+    if(pin && onlyChecking){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    } 
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
+    console.log("everything",onlyChecking,attackingPiece,pinnedPieceCount,pinnedPiece[0],attackLane,pinningLane,pinningLanes);
     for(i=x-1,j=y-1;i>96;i--,j--){
-            if(j>=0){
-            console.log(i,j,"left upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+        console.log(i,j,"left upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+        if(j>=0){
             attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
-            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
-                break;
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){    
+                if(onlyChecking){
+                pinnedPieceCount++;
+                console.log("showing pinned piece count: ",pinnedPieceCount);
+                pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                if(pinnedPieceCount>1){
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+                }}
+                else{
+                    console.log("breaking in left upper");
+                    break;
+                }
             }
-            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black'))){
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){ 
+            if(onlyChecking){
+                console.log("zeroing pinned piece count");
+                pinnedPiece.length=0;
+                pinnedPieceCount=0;
                 break;
-            }
+            }else{
+                console.log("breaking in left upper");
+                break;
+            }}
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                if(onlyChecking && pinnedPieceCount==1){
+                    pin=true;
+                    pinnedPieces.push(pinnedPiece[0]);
+                    console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
                 kingUnderAttack=true;
-                console.log("inside left up diag: ",kingUnderAttack);
+                attackingPiece=true;
                 break;
             }
-        }
-        if(!kingUnderAttack){
-            attackLane.length=0;
-        }
-    }  
-    for(i=x-1,j=y+1;i>96;i--,j++){
-            if(j<8){
-            console.log(i,j,"left lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
-            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
-            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
-                break;
-            }
-            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
-                break;
-            }
-            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
-                kingUnderAttack=true;
-                break;
-            }
-        }
-        if(!kingUnderAttack){
-            attackLane.length=0;
         }
     }
-    for(i=x+1,j=y+1;i<105;i++,j++){
-            if(j<8){
-            console.log(i,j,"right lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+    if(onlyChecking && pin){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }  
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
+    for(i=x-1,j=y+1;i>96;i--,j++){
+        if(j<8){
             attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
-                break;
+                if(onlyChecking){
+                    pinnedPieceCount++;
+                    console.log("showing pinned piece count: ",pinnedPieceCount);
+                    pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    if(pinnedPieceCount>1){
+                        pinnedPiece.length=0;
+                        pinnedPieceCount=0;
+                        break;
+                    }}
+                    else{
+                        console.log("breaking in left upper");
+                        break;
+                    }
             }
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
+                if(onlyChecking){
+                    console.log("zeroing pinned piece count");
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+                }else{
+                    console.log("breaking in left upper");
+                    break;
+                }
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                if(onlyChecking && pinnedPieceCount==1){
+                    pin=true;
+                    pinnedPieces.push(pinnedPiece[0]);
+                    console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
+                kingUnderAttack=true;
+                attackingPiece=true;
                 break;
+            }
+        }
+    }
+    if(onlyChecking && pin){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
+    for(i=x+1,j=y+1;i<105;i++,j++){
+        if(j<8){
+            attackLane.push(document.getElementById(String.fromCharCode(i)+(j)));
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('white') && !document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('king-white')){
+                if(onlyChecking){
+                    pinnedPieceCount++;
+                    console.log("showing pinned piece count: ",pinnedPieceCount);
+                    pinnedPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    if(pinnedPieceCount>1){
+                        pinnedPiece.length=0;
+                        pinnedPieceCount=0;
+                        break;
+                    }}
+                    else{
+                        console.log("breaking in left upper");
+                        break;
+                    }
+            }
+            if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-black'))){
+                if(onlyChecking){
+                    console.log("zeroing pinned piece count");
+                    pinnedPiece.length=0;
+                    pinnedPieceCount=0;
+                    break;
+                }else{
+                    console.log("breaking in left upper");
+                    break;
+                }
             } 
             if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-black') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-black'))){
+                if(onlyChecking && pinnedPieceCount==1){
+                    pin=true;
+                    pinnedPieces.push(pinnedPiece[0]);
+                    console.log("pinned piece",document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
                 kingUnderAttack=true;
+                attackingPiece=true;
                 break;
             }
         }
-        if(!kingUnderAttack){
-            attackLane.length=0;
-        }
     }
+    if(onlyChecking && pin){
+        pinningLanes.push(attackLane.slice());
+        pin=false;
+    }
+    if(onlyChecking && !attackingPiece && pinnedPieceCount>0){
+        pinnedPieceCount=0;
+        pinnedPiece.length=0;
+    }
+    if(attackingPiece){
+        underAttack.push(attackLane.slice());
+        attackingPiece=false;
+    }
+    attackLane.length=0;
     if((x-1)>96 && (x+1)<105 && (y-1)>=0){
         if(document.getElementById(String.fromCharCode(x-1)+(y-1)).children[0] && document.getElementById(String.fromCharCode(x-1)+(y-1)).children[0].className.includes('pawn-black')){
             kingUnderAttack=true;
@@ -1274,7 +2113,6 @@ function AttackedLane(x,y){
     }
     for(i=x-1;i<x+2;i=i+2){
         if(y-2>=0 && y-2<8 && i<105 && i>96){
-            // console.log("knight attack",document.getElementById(String.fromCharCode(i)+(y-2)).children[0]);
             if(document.getElementById(String.fromCharCode(i)+(y-2)).children[0] && document.getElementById(String.fromCharCode(i)+(y-2)).children[0].className.includes('knight-black')){
                 kingUnderAttack=true;
             }
@@ -1282,7 +2120,6 @@ function AttackedLane(x,y){
     }
     for(i=x-1;i<x+2;i=i+2){
         if(y+2<8 && i<105 && i>96 && y+2>=0){
-            // console.log("knight attack",document.getElementById(String.fromCharCode(i)+(y+2)).children[0]);
             if(document.getElementById(String.fromCharCode(i)+(y+2)).children[0] && document.getElementById(String.fromCharCode(i)+(y+2)).children[0].className.includes('knight-black')){
                 kingUnderAttack=true;
             }
@@ -1290,7 +2127,6 @@ function AttackedLane(x,y){
     }
     for(i=y-1;i<y+2;i=i+2){
         if(x-2>96 && x-2<105 && i<8 && i>=0){
-            // console.log("knight attack",document.getElementById(String.fromCharCode(x-2)+(i)).children[0]);
             if(document.getElementById(String.fromCharCode(x-2)+(i)).children[0] && document.getElementById(String.fromCharCode(x-2)+(i)).children[0].className.includes('knight-black')){
                 kingUnderAttack=true;
             }
@@ -1298,18 +2134,53 @@ function AttackedLane(x,y){
     }
     for(i=y-1;i<y+2;i=i+2){
         if(x+2<105 && x+2>=0 && i<8 && i>=0){
-            // console.log("knight attack",document.getElementById(String.fromCharCode(x+2)+(i)).children[0]);
             if(document.getElementById(String.fromCharCode(x+2)+(i)).children[0] && document.getElementById(String.fromCharCode(x+2)+(i)).children[0].className.includes('knight-black')){
                 kingUnderAttack=true;
             }
         }
     }
+    console.log("checking function end",kingUnderAttack);
 }
-    if(x==initialX.charCodeAt(0) && y==initialY && kingUnderAttack){
-        check = true;
+}
+
+function checkForPin(piece){
+    for(i=0;i<pinnedPieces.length;i++){
+        if(pinnedPieces[i]==piece){
+           return true;
+        }
+    }
+}   
+
+function pinnedPieceMovement(targ){
+    let targetInPinLane=false;
+    let pinLane=false,pinLaneId;
+    for(i=0;i<pinningLanes.length;i++){
+        for(j=0;j<pinningLanes[i].length;j++){
+            console.log("let's see piece & pinningLanes",pinningLanes[i][j].children[0]==targ);
+            if(pinningLanes[i][j].children[0] && (pieceId == pinningLanes[i][j].children[0])){
+                pinLane=true;
+                pinLaneId=i;
+            }
+        }
+    }
+    if(pinLane){
+        for(i=0;i<pinningLanes[pinLaneId].length;i++){
+            console.log(pinningLanes[pinLaneId][i],"targ",targ);
+            if(pinningLanes[pinLaneId][i]==targ){
+                targetInPinLane=true;
+            }else if(pinningLanes[pinLaneId][i].children[0] && (pinningLanes[pinLaneId][i].children[0]==targ)){
+                targetInPinLane=true;
+            }
+        }
+    }
+    if(targetInPinLane){
+        return true;
+    }else{
+        return false;
     }
 }
 
+    
 
 
 
@@ -1335,8 +2206,9 @@ pawns[i].addEventListener('click',(e)=>{
 })
 }
 
-let queen = document.getElementById('queen-black');
-queen.addEventListener('click',(e)=>{
+let queen = document.getElementsByClassName('queen-black');
+for(i=0;i<queen.length;i++){
+queen[i].addEventListener('click',(e)=>{
     clearAllColors();
     if(whiteChance==false){
     element = e.target;
@@ -1348,7 +2220,7 @@ queen.addEventListener('click',(e)=>{
         pieceClicked = false;
         clearAllColors();
         console.log("queen unclicked");
-}}})
+}}})}
 
 let king = document.getElementById('king-black');
 king.addEventListener('click',(e)=>{
@@ -2324,6 +3196,215 @@ if(pieceClicked == true && pieceId.className == "king-black"){
     }}
     
 }
+
+let x,y;
+    x = document.getElementById('king-white').parentElement.classList[2];
+    y = parseInt(document.getElementById('king-white').parentElement.classList[3]);
+    onlyChecking=true;
+    possibleKingMoves(x,y);
+    onlyChecking=false;
+    console.log("raaja aala",kingUnderAttack);
+    onlyChecking=true;
+    AttackedLane(x.charCodeAt(0),y);
+    onlyChecking=false;
+    if(kingUnderAttack){
+        check=true;
+        console.log("raaja rangenge");
+        document.getElementById('king-white').parentElement.style.backgroundColor='yellow';
+    }
+    console.log("check: ",check,", kingUnderAttack:",kingUnderAttack);
+    if(check){
+    for(k=0;k<underAttack.length;k++){
+        console.log("dekho kaun sa teer",underAttack[k].classList[2].charCodeAt(0),parseInt(underAttack[k].classList[3]));
+        CheckingSafe(underAttack[k].classList[2].charCodeAt(0),parseInt(underAttack[k].classList[3]));
+    }if(!kingCanBeSaved && possMoves.length==0){
+        document.getElementById('d4').innerHTML = "<p>END</p>"
+    }else{
+        kingCanBeSaved=false;
+    }
+
+}
+
+    function CheckingSafe(x,y){
+        console.log("safety check: ",x,y);
+        safetyPiece.length=0;
+        if(x>96 && x<105 && y>=0 && y<8){
+        for(i=y-1;i>=0;i--){
+            console.log(x,i,"upper",document.getElementById(String.fromCharCode(x)+(i)));
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('black')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-white'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-white'))){
+                kingCanBeSaved=true;
+                console.log("ab true hua",kingCanBeSaved);
+                safetyPiece.push(document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                break;
+            }
+        }
+        for(i=y+1;i<8;i++){
+            console.log(x,i,"lower",document.getElementById(String.fromCharCode(x)+(i)));
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('black')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('knight-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('bishop-white'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(x)+(i)).children[0] && (document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(x)+(i)).children[0].className.includes('rook-white'))){
+                kingCanBeSaved=true;
+                console.log("ab true hua",kingCanBeSaved);
+                safetyPiece.push(document.getElementById(String.fromCharCode(x)+(i)).children[0]);
+                break;
+            }
+        }
+        for(i=x-1;i>96;i--){
+            console.log(y,i,"left",document.getElementById(String.fromCharCode(i)+(y)));
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('black')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-white'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-white'))){
+                kingCanBeSaved=true;
+                console.log("ab true hua",kingCanBeSaved);
+                safetyPiece.push(document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                break;
+            }
+        }  
+        for(i=x+1;i<105;i++){
+            console.log(y,i,"right",document.getElementById(String.fromCharCode(i)+(y)));
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('black')){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('knight-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('bishop-white'))){
+                break;
+            }
+            if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && (document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(y)).children[0].className.includes('rook-white'))){
+                kingCanBeSaved=true;
+                console.log("ab true hua",kingCanBeSaved);
+                safetyPiece.push(document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                break;
+            }
+        }
+        
+        for(i=x+1,j=y-1;i<105;i++,j--){
+            if(j>=0){
+                console.log(i,j,"right upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('black')){
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-white'))){
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-white'))){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
+            }
+        }
+        for(i=x-1,j=y-1;i>96;i--,j--){
+            if(j>=0){
+                console.log(i,j,"left upper diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('black')){    
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-white'))){ 
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-white'))){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
+            }
+        }
+        for(i=x-1,j=y+1;i>96;i--,j++){
+            if(j<8){
+                console.log(i,j,"left lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('black')){
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-white'))){
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-white'))){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
+            }
+        }
+        for(i=x+1,j=y+1;i<105;i++,j++){
+            if(j<8){
+                console.log(i,j,"right lower diag: ",document.getElementById(String.fromCharCode(i)+(j)));
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('black')){
+                    break;
+                }
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('pawn-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('knight-white'))){
+                    break;
+                } 
+                if(document.getElementById(String.fromCharCode(i)+(j)).children[0] && (document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('queen-white') || document.getElementById(String.fromCharCode(i)+(j)).children[0].className.includes('bishop-white'))){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(j)).children[0]);
+                    break;
+                }
+            }
+        }
+        if((x)>96 && (x)<105 && (y+1)<8){
+            if(document.getElementById(String.fromCharCode(x)+(y+1)).children[0] && document.getElementById(String.fromCharCode(x)+(y+1)).children[0].className.includes('pawn-white')){
+                if(document.getElementById(String.fromCharCode(x)+(y)).children[0] && !(document.getElementById(String.fromCharCode(x)+(y)).children[0].querySelector('img'))){
+                kingCanBeSaved=true;
+                console.log("ab true hua first",kingCanBeSaved);
+                safetyPiece.push(document.getElementById(String.fromCharCode(x)+(y+1)).children[0]);
+            }}
+        }
+        for(i=x-1;i<x+2;i=i+2){
+            if(y-2>=0 && y-2<8 && i<105 && i>96){
+                if(document.getElementById(String.fromCharCode(i)+(y-2)).children[0] && document.getElementById(String.fromCharCode(i)+(y-2)).children[0].className.includes('knight-white')){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua second",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(y-2)).children[0]);
+                }
+            }
+        }
+        for(i=x-1;i<x+2;i=i+2){
+            if(y+2<8 && i<105 && i>96 && y+2>=0){
+                if(document.getElementById(String.fromCharCode(i)+(y+2)).children[0] && document.getElementById(String.fromCharCode(i)+(y+2)).children[0].className.includes('knight-white')){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua third",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(i)+(y+2)).children[0]);
+                }
+            }
+        }
+        for(i=y-1;i<y+2;i=i+2){
+            if(x-2>96 && x-2<105 && i<8 && i>=0){
+                if(document.getElementById(String.fromCharCode(x-2)+(i)).children[0] && document.getElementById(String.fromCharCode(x-2)+(i)).children[0].className.includes('knight-white')){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua fourth",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(x-2)+(i)).children[0]);
+                }
+            }
+        }
+        for(i=y-1;i<y+2;i=i+2){
+            if(x+2<105 && x+2>=0 && i<8 && i>=0){
+                if(document.getElementById(String.fromCharCode(x+2)+(i)).children[0] && document.getElementById(String.fromCharCode(x+2)+(i)).children[0].className.includes('knight-white')){
+                    kingCanBeSaved=true;
+                    console.log("ab true hua fifth",kingCanBeSaved);
+                    safetyPiece.push(document.getElementById(String.fromCharCode(x+2)+(i)).children[0]);
+                }
+            }
+        }
+        console.log("checking king safety",kingCanBeSaved); 
+    }
+    }
 
 }
 )
