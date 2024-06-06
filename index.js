@@ -1672,30 +1672,32 @@ function AttackedLane(x,y){
     pinningLane.length=0;
     pinningLanes.length=0;
     if(x>96 && x<105 && y>=0 && y<8){
-        for(i=x-1;i<x+2;i++){
-            if(i>96 && i<105 && y-1>=0 && y<8){
-                if(document.getElementById(String.fromCharCode(i)+(y-1)).children[0] && document.getElementById(String.fromCharCode(i)+(y-1)).children[0].className == "king-black"){
-                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y-1)).children[0]);
-                    kingUnderAttack=true;
+        // if(!onlyChecking){
+            for(i=x-1;i<x+2;i++){
+                if(i>96 && i<105 && y-1>=0 && y<8){
+                    if(document.getElementById(String.fromCharCode(i)+(y-1)).children[0] && document.getElementById(String.fromCharCode(i)+(y-1)).children[0].className == "king-black"){
+                        console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y-1)).children[0]);
+                        kingUnderAttack=true;
+                    }
                 }
             }
-        }
-        for(i=x-1;i<x+2;i++){
-            if(i>96 && i<105 && y>=0 && y+1<8){
-                if(document.getElementById(String.fromCharCode(i)+(y+1)).children[0] && document.getElementById(String.fromCharCode(i)+(y+1)).children[0].className == "king-black"){
-                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y+1)).children[0]);
-                    kingUnderAttack=true;
+            for(i=x-1;i<x+2;i++){
+                if(i>96 && i<105 && y>=0 && y+1<8){
+                    if(document.getElementById(String.fromCharCode(i)+(y+1)).children[0] && document.getElementById(String.fromCharCode(i)+(y+1)).children[0].className == "king-black"){
+                        console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y+1)).children[0]);
+                        kingUnderAttack=true;
+                    }
                 }
             }
-        }
-        for(i=x-1;i<x+2;i++){
-            if(i>96 && i<105 && y>=0 && y<8){
-                if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className == "king-black"){
-                    console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y)).children[0]);
-                    kingUnderAttack=true;
+            for(i=x-1;i<x+2;i++){
+                if(i>96 && i<105 && y>=0 && y<8){
+                    if(document.getElementById(String.fromCharCode(i)+(y)).children[0] && document.getElementById(String.fromCharCode(i)+(y)).children[0].className == "king-black"){
+                        console.log("black king attack places: ",document.getElementById(String.fromCharCode(i)+(y)).children[0]);
+                        kingUnderAttack=true;
+                    }
                 }
             }
-        }
+        // }
     for(i=y-1;i>=0;i--){
         console.log(x,i,"upper",document.getElementById(String.fromCharCode(x)+(i)));
         attackLane.push(document.getElementById(String.fromCharCode(x)+(i)));
